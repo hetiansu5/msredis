@@ -1,0 +1,5 @@
+[redis]
+default = "127.0.0.1:6379,0"
+cache   = "127.0.0.1:6379,1?idleTimeout=600&maxActive=128"
+cache_slave1 = "127.0.0.1:6379,1"
+cache_slave2 = "127.0.0.1:6379,2"
