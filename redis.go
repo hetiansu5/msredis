@@ -13,7 +13,7 @@ import (
 
 var (
 	readOps       map[string]bool
-	redisGroupMap map[string]*redisGroup
+	redisGroupMap map[string]*RedisGroup
 	mutex         sync.RWMutex
 )
 
@@ -29,17 +29,17 @@ func init() {
 	for _, op := range ops {
 		readOps[op] = true
 	}
-	redisGroupMap = make(map[string]*redisGroup)
+	redisGroupMap = make(map[string]*RedisGroup)
 }
 
-type redisGroup struct {
+type RedisGroup struct {
 	ctx        context.Context
 	masterName string
 	slaveNames []string
 	slaveCount int
 }
 
-func Group(name ...string) *redisGroup {
+func Group(name ...string) *RedisGroup {
 	var key string
 	if len(name) > 0 {
 		key = strings.Join(name, ":")
@@ -58,7 +58,7 @@ func Group(name ...string) *redisGroup {
 	return obj
 }
 
-func New(name ...string) *redisGroup {
+func New(name ...string) *RedisGroup {
 	masterName := gredis.DefaultGroupName
 	var slaveNames []string
 	if len(name) > 0 {
@@ -69,7 +69,7 @@ func New(name ...string) *redisGroup {
 			slaveNames = append(slaveNames, name[1:]...)
 		}
 	}
-	rGroup := &redisGroup{
+	rGroup := &RedisGroup{
 		masterName: masterName,
 		slaveNames: slaveNames,
 		slaveCount: len(slaveNames),
@@ -77,11 +77,11 @@ func New(name ...string) *redisGroup {
 	return rGroup
 }
 
-func (r *redisGroup) Master() *gredis.Redis {
+func (r *RedisGroup) Master() *gredis.Redis {
 	return r.redis(r.masterName)
 }
 
-func (r *redisGroup) Slave() *gredis.Redis {
+func (r *RedisGroup) Slave() *gredis.Redis {
 	if r.slaveCount <= 0 {
 		return r.Master()
 	} else if r.slaveCount == 1 {
@@ -91,16 +91,16 @@ func (r *redisGroup) Slave() *gredis.Redis {
 	return r.redis(name)
 }
 
-func (r *redisGroup) redis(name string) *gredis.Redis {
+func (r *RedisGroup) redis(name string) *gredis.Redis {
 	return gins.Redis(name)
 }
 
-func (r *redisGroup) isReadOp(commandName string) bool {
+func (r *RedisGroup) isReadOp(commandName string) bool {
 	cm := strings.ToLower(commandName)
 	return readOps[cm] == true
 }
 
-func (r *redisGroup) autoSelect(commandName string) *gredis.Redis {
+func (r *RedisGroup) autoSelect(commandName string) *gredis.Redis {
 	var rs *gredis.Redis
 	if r.isReadOp(commandName) {
 		rs = r.Slave()
@@ -114,14 +114,14 @@ func (r *redisGroup) autoSelect(commandName string) *gredis.Redis {
 }
 
 // Clone clones and returns a new Redis object, which is a shallow copy of current one.
-func (r *redisGroup) Clone() *redisGroup {
-	newRedisGroup := &redisGroup{}
+func (r *RedisGroup) Clone() *RedisGroup {
+	newRedisGroup := &RedisGroup{}
 	*newRedisGroup = *r
 	return newRedisGroup
 }
 
 // Ctx is a channing function which sets the context for next operation.
-func (r *redisGroup) Ctx(ctx context.Context) *redisGroup {
+func (r *RedisGroup) Ctx(ctx context.Context) *RedisGroup {
 	newRedis := r.Clone()
 	newRedis.ctx = ctx
 	return newRedis
@@ -130,23 +130,23 @@ func (r *redisGroup) Ctx(ctx context.Context) *redisGroup {
 // Do sends a command to the server and returns the received reply.
 // Do automatically get a connection from pool, and close it when the reply received.
 // It does not really "close" the connection, but drops it back to the connection pool.
-func (r *redisGroup) Do(commandName string, args ...interface{}) (interface{}, error) {
+func (r *RedisGroup) Do(commandName string, args ...interface{}) (interface{}, error) {
 	return r.autoSelect(commandName).Do(commandName, args...)
 }
 
 // DoWithTimeout sends a command to the server and returns the received reply.
 // The timeout overrides the read timeout set when dialing the connection.
-func (r *redisGroup) DoWithTimeout(timeout time.Duration, commandName string, args ...interface{}) (interface{}, error) {
+func (r *RedisGroup) DoWithTimeout(timeout time.Duration, commandName string, args ...interface{}) (interface{}, error) {
 	return r.autoSelect(commandName).DoWithTimeout(timeout, commandName, args...)
 }
 
 // DoVar returns value from Do as gvar.Var.
-func (r *redisGroup) DoVar(commandName string, args ...interface{}) (*gvar.Var, error) {
+func (r *RedisGroup) DoVar(commandName string, args ...interface{}) (*gvar.Var, error) {
 	return r.autoSelect(commandName).DoVar(commandName, args...)
 }
 
 // DoVarWithTimeout returns value from Do as gvar.Var.
 // The timeout overrides the read timeout set when dialing the connection.
-func (r *redisGroup) DoVarWithTimeout(timeout time.Duration, commandName string, args ...interface{}) (*gvar.Var, error) {
+func (r *RedisGroup) DoVarWithTimeout(timeout time.Duration, commandName string, args ...interface{}) (*gvar.Var, error) {
 	return r.autoSelect(commandName).DoVarWithTimeout(timeout, commandName, args...)
 }
