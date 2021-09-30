@@ -1,4 +1,4 @@
-module msredis
+module github.com/hetiansu5/msredis
 
 go 1.16
 
